@@ -29,26 +29,44 @@ class view:
         self.__df_dis["Density (A/m^2)"] = pd.Series(self.__azr_dis.getDensity())
         self.__df_dis["dV/d(lnJ) (V)"] = pd.Series(self.__azr_dis.getVoltageLn())
 
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=self.__df_en["Density (A/m^2)"],
-            y=self.__df_en["dV/d(lnJ) (V)"],
-            mode="lines+markers",
-            name="Enabled"
-        ))
-        fig.add_trace(go.Scatter(
-            x=self.__df_dis["Density (A/m^2)"],
-            y=self.__df_dis["dV/d(lnJ) (V)"],
-            mode="lines+markers",
-            name="Disabled"
-        ))
+        df = pd.concat([self.__df_en, self.__df_dis]).reset_index(drop=True)
+        fig = px.line(
+            df,
+            x="Density (A/m^2)",
+            y="dV/d(lnJ) (V)",
+            color="Light",
+            markers=True,
+            line_shape="spline",
+            render_mode="svg",
+        )
         return fig
 
+    def hRelation(self):
+        self.__df_en["Density (A/m^2)"] = pd.Series(self.__azr_en.getDensity())
+        self.__df_en["H(J) (V)"] = pd.Series(self.__azr_en.getH())
+        self.__df_dis["Density (A/m^2)"] = pd.Series(self.__azr_dis.getDensity())
+        self.__df_dis["H(J) (V)"] = pd.Series(self.__azr_dis.getH())
+
+        df = pd.concat([self.__df_en, self.__df_dis]).reset_index(drop=True)
+        fig = px.line(
+            df,
+            x="Density (A/m^2)",
+            y="H(J) (V)",
+            color="Light",
+            markers=True,
+            line_shape="spline",
+            render_mode="svg",
+        )
+        return fig
+    
     def resistance(self):
         return (self.__azr_en.getResistance() + self.__azr_dis.getResistance())/2
 
     def ideality(self):
         return (self.__azr_en.getIdeality() + self.__azr_dis.getIdeality())/2
+    
+    def barrierHeight(self):
+        return (self.__azr_en.getBarrier() + self.__azr_dis.getBarrier())/2
 
 def wipe_state(keys):
     for key in keys:
@@ -65,15 +83,13 @@ with st.sidebar.form(key="Params"):
     data = st.form_submit_button("Characterize")
 
 if data:
-    wipe_state(["fig", "fig_difference", "fig_log", "calculated", "df"])
+    wipe_state(["fig_H", "fig_log", "calculated", "df"])
     st.session_state["df"] = read_data(source_file)
     model_view = view(st.session_state["df"], active_area)
-    st.session_state["fig"] = model_view.logRelation()
-    st.plotly_chart(st.session_state["fig"], use_container_width=True)
+    st.session_state["fig_log"] = model_view.logRelation()
+    st.session_state["fig_H"] = model_view.hRelation()
     st.markdown(f"Resistance = {model_view.resistance():.4} Ohm")
     st.markdown(f"Ideality factor = {model_view.ideality():.4}")
-    # st.markdown(f"Schottky barrier height = {calc.getResistance():.4} Ohm")
-    
-df = read_data("measurements_no_clusters.csv")
-model_view = view(df, 1e-4)
-model_view.logRelation()
+    st.markdown(f"Schottky barrier height = {model_view.barrierHeight():.4} V")
+    st.plotly_chart(st.session_state["fig_log"], use_container_width=True)
+    st.plotly_chart(st.session_state["fig_H"], use_container_width=True)
