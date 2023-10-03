@@ -37,11 +37,14 @@ class Analyzer:
         if not hasattr(self, "__volt_log"):
             self.getVoltageLn()
         if not hasattr(self, "__ideality"):
-            print(self.__dens)
-            print(self.__volt_log)
-            fit = np.polyfit(self.__dens[:-1].copy(), self.__volt_log, 1)
+            print(len(self.__dens[:-1].copy()))
+            print(len(self.__volt_log))
+            clean_dens = self.__dens[:-1].copy()
+            clean_dens = np.extract(clean_dens == clean_dens, clean_dens)
+            clean_vlog = np.extract(self.__volt_log == self.__volt_log, self.__volt_log)
+            fit = np.polyfit(clean_dens, clean_vlog, 1)
             line = np.poly1d(fit)
-            self.__ideality = line([1])
+            self.__ideality = np.average(line([1]))
         return self.__ideality
 
 # n = y[-1] - slope*np.log(J[-1])
