@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-
+from numpy.lib.stride_tricks import sliding_window_view as swv
 
 E_CHARGE = 1.60217663e-19
 C_BOLTZMANN = 1.380649e-23
@@ -13,9 +13,10 @@ class Analyzer:
         self.__volt = voltage
         self.__current = current
         self.__dens = current/area
+        self.__dens_interp = swv(self.__dens, 2).mean(axis=1)
 
     def getDensity(self):
-        return self.__dens
+        return self.__dens_interp
 
     def getVoltageLn(self):
         if not hasattr(self, "__volt_log"):
@@ -28,7 +29,7 @@ class Analyzer:
         if not hasattr(self, "__volt_log"):
             self.getVoltageLn()
         if not hasattr(self, "__resistance"):
-            slope = np.diff(self.__volt_log)/np.diff(self.__dens[:-1].copy())
+            slope = np.diff(self.__volt_log)/np.diff(self.__dens_interp)
             self.__slope = np.average(np.extract(slope == slope, slope))
             self.__resistance = self.__slope/self.__area
         return self.__resistance
@@ -37,12 +38,22 @@ class Analyzer:
         if not hasattr(self, "__volt_log"):
             self.getVoltageLn()
         if not hasattr(self, "__ideality"):
-            print(self.__dens)
-            print(self.__volt_log)
-            fit = np.polyfit(self.__dens[:-1].copy(), self.__volt_log, 1)
+            dens, vlog = self.__remove_nans()
+            fit = np.polyfit(dens, vlog, 1)
+            print(fit)
             line = np.poly1d(fit)
-            self.__ideality = line([1])
+            self.__ideality = line([1])[0]
         return self.__ideality
+    
+    def __remove_nans(self):
+        length = len(self.__volt_log)
+        dens = self.__dens_interp
+        vlog = self.__volt_log
+        nans = []
+        for i in range(length):
+            if (vlog[i] != vlog[i]):
+                nans += [i]
+        return np.delete(dens, nans), np.delete(vlog, nans)
 
 # n = y[-1] - slope*np.log(J[-1])
 
