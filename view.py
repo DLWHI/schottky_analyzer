@@ -59,14 +59,8 @@ class view:
         )
         return fig
     
-    def resistance(self):
-        return (self.__azr_en.getResistance() + self.__azr_dis.getResistance())/2
-
-    def ideality(self):
-        return (self.__azr_en.getIdeality() + self.__azr_dis.getIdeality())/2
-    
-    def barrierHeight(self):
-        return (self.__azr_en.getBarrier() + self.__azr_dis.getBarrier())/2
+    def parameters(self):
+        return self.__azr_en.getParameters()
 
 def wipe_state(keys):
     for key in keys:
@@ -88,8 +82,9 @@ if data:
     model_view = view(st.session_state["df"], active_area)
     st.session_state["fig_log"] = model_view.logRelation()
     st.session_state["fig_H"] = model_view.hRelation()
-    st.markdown(f"Resistance = {model_view.resistance():.4} Ohm")
-    st.markdown(f"Ideality factor = {model_view.ideality():.4}")
-    st.markdown(f"Schottky barrier height = {model_view.barrierHeight():.4} V")
+    model_view.parameters()
+    st.markdown(f"Resistance = {model_view.parameters()[0]:.4} Ohm")
+    st.markdown(f"Ideality factor = {model_view.parameters()[1]:.4}")
+    # st.markdown(f"Schottky barrier height = {model_view.parameters()[2]:.4} V")
     st.plotly_chart(st.session_state["fig_log"], use_container_width=True)
     st.plotly_chart(st.session_state["fig_H"], use_container_width=True)
