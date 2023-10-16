@@ -9,58 +9,52 @@ pd.options.mode.chained_assignment = None
 
 class view:
     def __init__(self, dataframe, area) -> None:
-        self.__df_en = dataframe[dataframe["Light"] == "Enabled"].reset_index(drop=True)
-        self.__df_dis = dataframe[dataframe["Light"] == "Disabled"].reset_index(drop=True)
+        self.__df = dataframe[dataframe["Light"] == "Disabled"].reset_index(drop=True)
 
-        self.__azr_en = sa.Analyzer(
-            self.__df_en["Voltage (V)"], 
-            self.__df_en["Current (A)"],
+        self.__model = sa.Analyzer(
+            self.__df["Voltage (V)"], 
+            self.__df["Current (A)"],
             area
         )
-        self.__azr_dis = sa.Analyzer(
-            self.__df_dis["Voltage (V)"], 
-            self.__df_dis["Current (A)"],
-            area
-        )
+        self.__params = None
+        self.__fit_data = None
 
     def logRelation(self):
-        self.__df_en["Density (A/m^2)"] = pd.Series(self.__azr_en.getDensity())
-        self.__df_en["dV/d(lnJ) (V)"] = pd.Series(self.__azr_en.getVoltageLn())
-        self.__df_dis["Density (A/m^2)"] = pd.Series(self.__azr_dis.getDensity())
-        self.__df_dis["dV/d(lnJ) (V)"] = pd.Series(self.__azr_dis.getVoltageLn())
+        self.__df["Density (A/m^2)"] = pd.Series(self.__model.getDensity())
+        self.__df["dV/d(lnJ) (V)"] = pd.Series(self.__model.getVoltageLn())
 
-        df = pd.concat([self.__df_en, self.__df_dis]).reset_index(drop=True)
-        fig = px.line(
-            df,
+        fig = px.scatter(
+            self.__df,
             x="Density (A/m^2)",
             y="dV/d(lnJ) (V)",
-            color="Light",
-            markers=True,
-            line_shape="spline",
             render_mode="svg",
+            trendline='ols'
         )
         return fig
 
     def hRelation(self):
-        self.__df_en["Density (A/m^2)"] = pd.Series(self.__azr_en.getDensity())
-        self.__df_en["H(J) (V)"] = pd.Series(self.__azr_en.getH())
-        self.__df_dis["Density (A/m^2)"] = pd.Series(self.__azr_dis.getDensity())
-        self.__df_dis["H(J) (V)"] = pd.Series(self.__azr_dis.getH())
+        self.__df["Density (A/m^2)"] = pd.Series(self.__model.getDensity())
+        self.__df["H(J) (V)"] = pd.Series(self.__model.getH())
 
-        df = pd.concat([self.__df_en, self.__df_dis]).reset_index(drop=True)
-        fig = px.line(
-            df,
+        fig = px.scatter(
+            self.__df,
             x="Density (A/m^2)",
             y="H(J) (V)",
             color="Light",
-            markers=True,
-            line_shape="spline",
             render_mode="svg",
+            trendline='ols'
         )
         return fig
     
     def parameters(self):
-        return self.__azr_en.getParameters()
+        if self.__params is None:
+            self.__params = self.__model.getParameters()
+        return self.__params
+    
+    def fit_data(self):
+        if self.__fit_data is None:
+            self.__fit_data = self.__model.getFitData()
+        return self.__fit_data
 
 def wipe_state(keys):
     for key in keys:
@@ -85,6 +79,14 @@ if data:
     model_view.parameters()
     st.markdown(f"Resistance = {model_view.parameters()[0]:.4} Ohm")
     st.markdown(f"Ideality factor = {model_view.parameters()[1]:.4}")
-    # st.markdown(f"Schottky barrier height = {model_view.parameters()[2]:.4} V")
+    st.markdown(f"Schottky barrier height = {model_view.parameters()[2]:.4} ")
+    st.markdown("---")
     st.plotly_chart(st.session_state["fig_log"], use_container_width=True)
+    st.markdown(f"Fitting data:")
+    st.markdown(f"RAeff (slope): {model_view.fit_data()[0][0]:.4}")
+    st.markdown(f"n/β (intesection): {model_view.fit_data()[0][1]:.4}")
+    st.markdown("---")
     st.plotly_chart(st.session_state["fig_H"], use_container_width=True)
+    st.markdown(f"Fitting data:")
+    st.markdown(f"RAeff (slope): {model_view.fit_data()[1][0]:.4}")
+    st.markdown(f"nφ (intesection): {model_view.fit_data()[1][1]:.4}")

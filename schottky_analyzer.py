@@ -1,8 +1,7 @@
 import numpy as np
+from scipy.constants import physical_constants as const
 from numpy.lib.stride_tricks import sliding_window_view as swv
 
-E_CHARGE = -1.60217663e-19
-C_BOLTZMANN = 1.380649e-23
 ROOM_TEMP = 293
 A = 112e-4
 
@@ -34,27 +33,32 @@ class Analyzer:
 
     def getH(self):
         if self.__fit_vln is None:
-            getVoltageLn()
+            self.getVoltageLn()
         if self.__h is None:
             lg = np.log(self.__dens/(A*ROOM_TEMP*ROOM_TEMP))
             self.__h = self.__volt - self.__fit_vln[1]*lg
-            dens = swv(self.__dens, 2).mean(axis=1)
-            # self.__fit(dens, self.__h)
+            self.__fit_h = self.__fit(self.__dens, self.__h)
         return self.__h
 
     def getParameters(self):
-        if self.__volt_log is None or self.__fit is None:
+        if self.__volt_log is None or self.__fit_vln is None:
             self.getVoltageLn()
         if self.__h is None:
             self.getH()
-        return self.__fit_vln[0]/self.__area, self.__fit_vln[1]*E_CHARGE/(ROOM_TEMP*C_BOLTZMANN)
+        r = (self.__fit_vln[0] + self.__fit_h[0])/(2*self.__area)
+        n = self.__fit_vln[1]*const["elementary charge"][0]/(ROOM_TEMP*const["Boltzmann constant"][0])
+        phi = self.__fit_h[1]/n
+        return r, n, phi 
         
-
+    def getFitData(self):
+        if self.__fit_vln is None:
+            self.getVoltageLn()
+        if self.__fit_h is None:
+            self.getH()
+        return self.__fit_vln, self.__fit_h
         
     def __fit(self, x, y):
         x, y = self.__remove_nans(x, y)
-        print(x)
-        print(y)
         fit = np.linalg.lstsq(np.vstack([x, np.ones(len(x))]).T, y, rcond=None)[0]
         return fit
         
